@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Local Insurance Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f0f2f5;
+    }
+    .container {
+      max-width: 650px;
+      background: #fff;
+      padding: 25px;
+      margin: auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    input, textarea, button {
+      width: 100%;
+      margin: 12px 0;
+      padding: 12px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #007BFF;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #response {
+      margin-top: 25px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #f9f9f9;
+      font-size: 0.95rem;
+    }
+    .loading {
+      font-style: italic;
+      color: gray;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Insurance Policy Analyzer (No API)</h2>
+    <form id="form" enctype="multipart/form-data">
+      <input type="file" name="file" required accept=".pdf,.docx,.txt">
+      <textarea name="user_input" placeholder="e.g. 65-year-old patient in Mumbai undergoing cataract surgery with 3-year-old policy" rows="5" required></textarea>
+      <button type="submit">Analyze</button>
+    </form>
+    <div id="response"></div>
+  </div>
+
+  <script>
+    document.getElementById("form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const form = this;
+      const responseBox = document.getElementById("response");
+      const formData = new FormData(form);
+
+      responseBox.innerHTML = "<p class='loading'>Analyzing policy, please wait...</p>";
+
+      try {
+        const res = await fetch("/analyze", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          responseBox.innerHTML = `<p style="color:red;"><strong>Error:</strong> ${data.error}</p>`;
+        } else {
+          responseBox.innerHTML = `
+            <strong>✅ Decision:</strong> ${data.decision}<br><br>
+            <strong>💰 Amount:</strong> ${data.amount || "N/A"}<br><br>
+            <strong>📄 Justification:</strong><br>${data.justification}
+          `;
+        }
+      } catch (err) {
+        responseBox.innerHTML = `<p style="color:red;"><strong>Request failed:</strong> ${err.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
