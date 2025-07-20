@@ -1,6 +1,7 @@
 flask
 python-docx
 PyPDF2
-scikit-learn
+sentence_transformers
+regex
 nltk
-spacy 
+faiss

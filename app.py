@@ -1,7 +1,19 @@
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
 import os
-from helpers import extract_text, chunk_text, find_best_match
+import re
+from helpers import extract_text, find_best_match, extract_best_sentence
+from  sentence_transformers import SentenceTransformer,util
+
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+def extract_amount(text):
+    match = re.search(r'(₹|\$|INR|USD)\s?\d{1,3}(?:,\d{3})*(?:\.\d+)?', text, re.IGNORECASE)
+    if match:
+        return match.group().strip()
+    return None
+
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -33,32 +45,30 @@ def analyze():
 
     try:
         policy_text = extract_text(filepath)
+        from helpers import chunk_text 
         chunks = chunk_text(policy_text)
-        best_match, score = find_best_match(chunks, user_input)
+        weighted_chunks = []
+        for heading, chunk in chunks:
+            weight = 1.0
+            if heading and any(key in heading.lower() for key in ['exclusion', 'table of benefits']):
+                weight = 1.5  # boost for important sections
+            weighted_chunks.append((chunk, weight))
 
-        # Simple logic for demo purpose
-        decision = "approved" if any(word in best_match.lower() for word in ["covered", "included", "approved", "claim admissible"]) else "denied"
-        amount = None
-        for token in best_match.split():
-            if "₹" in token or "$" in token or token.replace(',', '').replace('.', '').isdigit():
-                amount = token
-                break
-
+        best_match, score = find_best_match(weighted_chunks, user_input)
+        decision = score > 0.80
+        amount = extract_amount(best_match)
         return jsonify({
             "decision": decision,
             "amount": amount,
-            "justification": best_match.strip()
+            "justification": extract_best_sentence(best_match, user_input, model)
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    
-
-    
+if __name__ == '__main__':    
     import webbrowser
     import threading
     port = 5000
+    threading.Timer(1.25, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
     app.run(debug=True, port=port)
-    threading.Timer(1.25, lambda: webbrowser.open(f"http://127.0.0.1:{port}"))
